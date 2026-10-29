@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function autenticado() { return request.auth != null; }
+    function valido() {
+      let dados = request.resource.data;
+      return dados.keys().hasAll(['uid', 'titulo', 'tipo', 'nota', 'comentario'])
+        && dados.keys().hasOnly(['uid', 'titulo', 'tipo', 'nota', 'comentario'])
+        && dados.uid == request.auth.uid
+        && dados.titulo is string && dados.titulo.size() > 0 && dados.titulo.size() <= 120
+        && dados.tipo in ['Livro', 'Série']
+        && dados.nota is int && dados.nota >= 1 && dados.nota <= 5
+        && dados.comentario is string && dados.comentario.size() > 0 && dados.comentario.size() <= 2000;
+    }
+    match /reviews/{id} {
+      allow read, delete: if autenticado() && resource.data.uid == request.auth.uid;
+      allow create: if autenticado() && valido();
+      allow update: if autenticado() && resource.data.uid == request.auth.uid && valido();
+    }
+  }
+}
